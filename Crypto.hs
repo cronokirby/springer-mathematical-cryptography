@@ -3,7 +3,7 @@
 module Crypto where
 
 import Data.Bits
-import Data.List (unfoldr)
+import Data.List (foldl')
 import Ourlude
 
 -- | Calculate the gcd of two integers, and the two factors that satisfy bezout's theorem
@@ -31,3 +31,18 @@ inverse :: Modulus -> Integer -> Integer
 inverse p x =
   let (1, _, u) = bezout p x
    in normalize p u
+
+-- | Fast exponention, modulo p
+pow :: Modulus -> Integer -> Integer -> Integer
+pow p g k | k < 0 = inverse p (pow p g (- k))
+pow p g k = zip (bits k) squares |> filter fst |> map snd |> prod
+  where
+    squares :: [Integer]
+    squares = iterate (\x -> x * x `mod` p) (normalize p g)
+
+    bits :: Integer -> [Bool]
+    bits 0 = []
+    bits x = testBit x 0 : bits (shiftR x 1)
+
+    prod :: [Integer] -> Integer
+    prod = foldl' (\acc x -> acc * x `mod` p) 1
