@@ -46,3 +46,15 @@ pow p g k = zip (bits k) squares |> filter fst |> map snd |> prod
 
     prod :: [Integer] -> Integer
     prod = foldl' (\acc x -> acc * x `mod` p) 1
+
+-- | Find the (floor of) the square root of an integer
+squareRoot :: Integer -> Integer
+squareRoot n
+  | n < 0 = error "negative number"
+  | n == 0 = 0
+  | n > 0 = go n
+  where
+    go a =
+      let b = div (a + div n a) 2
+      in if a > b then go b else a
+ 
