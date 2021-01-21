@@ -3,7 +3,6 @@
 module Crypto where
 
 import Data.Bits
-import Debug.Trace
 import Data.List (find, foldl')
 import qualified Data.Map.Strict as Map
 import Ourlude
@@ -67,7 +66,7 @@ babyStepGiantStep p g h =
       babySteps = iterate (\x -> x * g `mod` p) 1 |> (`zip` [0 .. n]) |> Map.fromList
       g' = pow p (inverse p g) n
       giantSteps = iterate (\x -> x * g' `mod` p) h |> take (fromIntegral n)
-   in traceShow (babySteps, giantSteps) $ do
+   in do
         (j, x) <- find (snd >>> (`Map.member` babySteps)) (zip [0 ..] giantSteps)
         i <- Map.lookup x babySteps
         return (i + j * n)
