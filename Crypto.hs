@@ -3,7 +3,9 @@
 module Crypto where
 
 import Data.Bits
-import Data.List (foldl')
+import Debug.Trace
+import Data.List (find, foldl')
+import qualified Data.Map.Strict as Map
 import Ourlude
 
 -- | Calculate the gcd of two integers, and the two factors that satisfy bezout's theorem
@@ -56,5 +58,16 @@ squareRoot n
   where
     go a =
       let b = div (a + div n a) 2
-      in if a > b then go b else a
- 
+       in if a > b then go b else a
+
+-- | In some modular context, find an x such that g^x = h
+babyStepGiantStep :: Modulus -> Integer -> Integer -> Maybe Integer
+babyStepGiantStep p g h =
+  let n = 1 + squareRoot p
+      babySteps = iterate (\x -> x * g `mod` p) 1 |> (`zip` [0 .. n]) |> Map.fromList
+      g' = pow p (inverse p g) n
+      giantSteps = iterate (\x -> x * g' `mod` p) h |> take (fromIntegral n)
+   in traceShow (babySteps, giantSteps) $ do
+        (j, x) <- find (snd >>> (`Map.member` babySteps)) (zip [0 ..] giantSteps)
+        i <- Map.lookup x babySteps
+        return (i + j * n)
