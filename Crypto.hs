@@ -1,4 +1,3 @@
-{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module Crypto where
@@ -6,6 +5,7 @@ module Crypto where
 import Data.Bits
 import Data.List (find, foldl')
 import qualified Data.Map.Strict as Map
+import Data.Maybe (fromJust)
 import Ourlude
 
 -- | Calculate the gcd of two integers, and the two factors that satisfy bezout's theorem
@@ -61,13 +61,13 @@ squareRoot n
        in if a > b then go b else a
 
 -- | In some modular context, find an x such that g^x = h
-babyStepGiantStep :: Modulus -> Integer -> Integer -> Maybe Integer
+babyStepGiantStep :: Modulus -> Integer -> Integer -> Integer
 babyStepGiantStep p g h =
   let n = 1 + squareRoot p
       babySteps = iterate (\x -> x * g `mod` p) 1 |> (`zip` [0 .. n]) |> Map.fromList
       g' = pow p (inverse p g) n
       giantSteps = iterate (\x -> x * g' `mod` p) h |> take (fromIntegral n)
-   in do
+   in fromJust <| do
         (j, x) <- find (snd >>> (`Map.member` babySteps)) (zip [0 ..] giantSteps)
         i <- Map.lookup x babySteps
         return (i + j * n)
@@ -91,4 +91,41 @@ crt ((x1, m1) : (x2, m2) : rest) =
   let (1, u1, u2) = bezout m1 m2
       x = x2 * u1 * m1 + x1 * u2 * m2
       m = m1 * m2
-  in crt ((normalize m x, m) : rest)
+   in crt ((normalize m x, m) : rest)
+
+-- | Solve the discrete logarithm problem, with the pohlig hellman method
+--
+-- This is only good if p - 1 has small prime factors
+pohligHellman :: Modulus -> Integer -> Integer -> Integer
+pohligHellman p g h = trialFactor (p - 1) |> Map.toList |> map powerDLP |> crt
+  where
+    powerDLP :: (Integer, Int) -> (Integer, Integer)
+    powerDLP (q, n) = (sumDigitsUpTo n, m)
+      where
+        qPowers = iterate ((* q) >>> normalize p) 1
+        m = qPowers !! n
+        eRest = div (p - 1) m
+        g' = pow p g eRest
+        h' = pow p h eRest
+
+        sumDigitsUpTo :: Int -> Integer
+        sumDigitsUpTo n =
+          normalize p
+            <| sum
+            <| [normalize p <| digit i * (qPowers !! i) | i <- [0 .. n - 1]]
+
+        digit :: Int -> Integer
+        digit = (digits !!)
+          where
+            digits :: [Integer]
+            digits = map (babyStepGiantStep p g'') hs
+
+            hs :: [Integer]
+            hs = [getH i | i <- [0 .. n - 1]]
+              where
+                getH i =
+                  let qE = qPowers !! (n - i - 1)
+                      invPower = sumDigitsUpTo i * qE
+                   in normalize p <| pow p h' qE * pow p g' (- invPower)
+
+            g'' = pow p g' (qPowers !! (n - 1))
