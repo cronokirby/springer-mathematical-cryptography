@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module Crypto where
@@ -70,3 +71,14 @@ babyStepGiantStep p g h =
         (j, x) <- find (snd >>> (`Map.member` babySteps)) (zip [0 ..] giantSteps)
         i <- Map.lookup x babySteps
         return (i + j * n)
+
+-- | Factor a number with trial division
+trialFactor :: Integer -> Map.Map Integer Int
+trialFactor x | x < 0 = error "negative number"
+trialFactor number = go Map.empty 2 number
+  where
+    go _ _ 0 = Map.singleton 0 1
+    go acc _ 1 = acc
+    go acc d x
+      | x `mod` d == 0 = go (Map.insertWith (+) d 1 acc) d (x `div` d)
+      | otherwise = go acc (d + 1) x
