@@ -82,3 +82,13 @@ trialFactor number = go Map.empty 2 number
     go acc d x
       | x `mod` d == 0 = go (Map.insertWith (+) d 1 acc) d (x `div` d)
       | otherwise = go acc (d + 1) x
+
+-- | Given a list of (x, modulus) congruences, where all moduli are coprime, find a solution
+crt :: [(Integer, Integer)] -> Integer
+crt [] = 0
+crt [(x, _)] = x
+crt ((x1, m1) : (x2, m2) : rest) =
+  let (1, u1, u2) = bezout m1 m2
+      x = x2 * u1 * m1 + x1 * u2 * m2
+      m = m1 * m2
+  in crt ((normalize m x, m) : rest)
